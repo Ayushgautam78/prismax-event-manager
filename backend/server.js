@@ -35,7 +35,9 @@ const db = new sqlite3.Database('./database.sqlite', (err) => {
       event_time TEXT, -- Stored as UTC ISO string
       type TEXT, -- 'global' or 'regional'
       status TEXT DEFAULT 'upcoming',
-      host_name TEXT
+      host_name TEXT,
+      banner_image TEXT,
+      host_image TEXT
     )`);
 
     db.run(`CREATE TABLE IF NOT EXISTS host_requests (
