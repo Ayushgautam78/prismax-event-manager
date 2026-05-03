@@ -3,18 +3,13 @@ import cors from 'cors';
 import sqlite3 from 'sqlite3';
 import cron from 'node-cron';
 import dotenv from 'dotenv';
-import nodemailer from 'nodemailer';
 import { addMinutes, addHours, isBefore, parseISO } from 'date-fns';
+import dns from 'dns';
+
+// Force Node.js to use IPv4 instead of IPv6 for Render compatibility
+dns.setDefaultResultOrder('ipv4first');
 
 dotenv.config();
-
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
 
 const app = express();
 const port = 3001;
@@ -260,12 +255,16 @@ cron.schedule('* * * * *', async () => {
         
         if (sub.email) {
           console.log(`[EMAIL REMINDER: ${reminderToSend}] Sending to email ${sub.email} for event '${sub.title}'`);
-          if (process.env.EMAIL_USER && process.env.EMAIL_PASS && process.env.EMAIL_USER !== 'your_email@gmail.com') {
-            transporter.sendMail({
-              from: `"PrismaX Events" <${process.env.EMAIL_USER}>`,
+          const googleScriptUrl = 'https://script.google.com/macros/s/AKfycbz7HHskXITIXuWI5hhVT87l8_lFJep9tOZqMpjvfD_OecyXRQxuwMk5gX3gIwCfiS_7-w/exec';
+          fetch(googleScriptUrl, {
+            method: 'POST',
+            redirect: 'follow',
+            headers: {
+              'Content-Type': 'text/plain;charset=utf-8'
+            },
+            body: JSON.stringify({
               to: sub.email,
               subject: `PrismaX Alert: ${sub.title} is starting soon!`,
-              text: `Hello!\n\nThis is your ${reminderToSend} for "${sub.title}".\nGet ready to join!\n\nBest,\nThe PrismaX Team`,
               html: `
                 <div style="font-family: Arial, sans-serif; padding: 20px; background: #000; color: #fff; border-radius: 8px;">
                   <h2 style="color: #d4af37;">PrismaX Reminder</h2>
@@ -275,10 +274,13 @@ cron.schedule('* * * * *', async () => {
                   <p style="color: #888; font-size: 12px;">You are receiving this because you subscribed to email notifications for this event.</p>
                 </div>
               `
-            }).catch(err => console.error("Failed to send email:", err));
-          } else {
-            console.log("Email skipped: Credentials not configured in .env file.");
-          }
+            })
+          })
+          .then(response => response.text())
+          .then(data => {
+            console.log("Email sent successfully via Google Apps Script:", data);
+          })
+          .catch(err => console.error("Failed to send email via Google Apps Script:", err));
         }
 
         await runQuery('UPDATE subscriptions SET reminders_sent = ? WHERE id = ?', [sub.reminders_sent, sub.id]);
