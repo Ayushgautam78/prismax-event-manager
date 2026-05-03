@@ -1,0 +1,271 @@
+import express from 'express';
+import cors from 'cors';
+import sqlite3 from 'sqlite3';
+import cron from 'node-cron';
+import dotenv from 'dotenv';
+import nodemailer from 'nodemailer';
+import { addMinutes, addHours, isBefore, parseISO } from 'date-fns';
+
+dotenv.config();
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
+
+const app = express();
+const port = 3001;
+
+app.use(cors());
+app.use(express.json({ limit: '50mb' }));
+
+// Initialize SQLite Database
+const db = new sqlite3.Database('./database.sqlite', (err) => {
+  if (err) {
+    console.error('Error opening database', err);
+  } else {
+    console.log('Database connected.');
+    db.run(`CREATE TABLE IF NOT EXISTS events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT,
+      description TEXT,
+      event_time TEXT, -- Stored as UTC ISO string
+      type TEXT, -- 'global' or 'regional'
+      status TEXT DEFAULT 'upcoming',
+      host_name TEXT
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS host_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT,
+      description TEXT,
+      host_name TEXT,
+      discord_name TEXT,
+      status TEXT DEFAULT 'pending'
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_id INTEGER,
+      email TEXT,
+      device_id TEXT,
+      reminders_sent INTEGER DEFAULT 0,
+      final_reminder_time INTEGER -- 1 or 5 (minutes before)
+    )`);
+  }
+});
+
+// Helper to run queries as promises
+const runQuery = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function (err) {
+      if (err) reject(err);
+      else resolve(this);
+    });
+  });
+};
+
+const allQuery = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
+};
+
+// Routes
+const clients = new Map();
+
+app.get('/api/notifications/stream', (req, res) => {
+  const deviceId = req.query.deviceId;
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  if (deviceId) {
+    clients.set(deviceId, res);
+    req.on('close', () => {
+      clients.delete(deviceId);
+    });
+  }
+});
+
+app.get('/api/events', async (req, res) => {
+  try {
+    const events = await allQuery('SELECT * FROM events ORDER BY event_time ASC');
+    res.json(events);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/events/subscribe', async (req, res) => {
+  const { eventId, email, deviceId, finalReminderTime } = req.body;
+  try {
+    await runQuery('INSERT INTO subscriptions (event_id, email, device_id, final_reminder_time) VALUES (?, ?, ?, ?)', [eventId, email || null, deviceId, finalReminderTime || 5]);
+    res.json({ success: true, message: 'Subscribed successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/host-request', async (req, res) => {
+  const { title, description, hostName, discordName } = req.body;
+  try {
+    await runQuery('INSERT INTO host_requests (title, description, host_name, discord_name) VALUES (?, ?, ?, ?)', [title, description, hostName, discordName]);
+    res.json({ success: true, message: 'Host request submitted' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/admin/login', (req, res) => {
+  const { username, password } = req.body;
+  if (username === 'ayush' && password === 'ayush@dxt1') {
+    res.json({ success: true, token: 'fake-jwt-token' });
+  } else {
+    res.status(401).json({ success: false, message: 'Invalid credentials' });
+  }
+});
+
+app.get('/api/admin/requests', async (req, res) => {
+  try {
+    const requests = await allQuery("SELECT * FROM host_requests WHERE status = 'pending'");
+    res.json(requests);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/admin/requests/:id/approve', async (req, res) => {
+  const { id } = req.params;
+  const { eventTime, bannerImage, hostImage } = req.body;
+  try {
+    const request = (await allQuery('SELECT * FROM host_requests WHERE id = ?', [id]))[0];
+    if (request && eventTime) {
+      await runQuery('INSERT INTO events (title, description, event_time, type, host_name, banner_image, host_image) VALUES (?, ?, ?, ?, ?, ?, ?)', [request.title, request.description, eventTime, 'regional', request.host_name, bannerImage, hostImage]);
+      await runQuery("UPDATE host_requests SET status = 'approved' WHERE id = ?", [id]);
+      res.json({ success: true });
+    } else {
+      res.status(400).json({ error: 'Request not found or missing event time' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/admin/requests/:id/reject', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await runQuery("UPDATE host_requests SET status = 'rejected' WHERE id = ?", [id]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/admin/events', async (req, res) => {
+  const { title, description, eventTime, type, hostName, bannerImage, hostImage } = req.body;
+  try {
+    await runQuery('INSERT INTO events (title, description, event_time, type, host_name, banner_image, host_image) VALUES (?, ?, ?, ?, ?, ?, ?)', [title, description, eventTime, type, hostName, bannerImage, hostImage]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/admin/events/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await runQuery('DELETE FROM events WHERE id = ?', [id]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Reminder Scheduler
+cron.schedule('* * * * *', async () => {
+  const now = new Date();
+  
+  try {
+    // Check for ended events
+    await runQuery("UPDATE events SET status = 'ended' WHERE event_time <= ? AND status = 'upcoming'", [now.toISOString()]);
+    
+    // Process reminders
+    const subscriptions = await allQuery(`
+      SELECT s.*, e.title, e.event_time 
+      FROM subscriptions s 
+      JOIN events e ON s.event_id = e.id 
+      WHERE e.status = 'upcoming'
+    `);
+    
+    for (const sub of subscriptions) {
+      const eventTime = new Date(sub.event_time);
+      const diffMinutes = Math.floor((eventTime - now) / 60000);
+      
+      let reminderToSend = null;
+      
+      // 1 hour reminder
+      if (diffMinutes === 60 && sub.reminders_sent < 1) {
+        reminderToSend = '1 Hour Reminder';
+        sub.reminders_sent = 1;
+      }
+      // 30 min reminder
+      else if (diffMinutes === 30 && sub.reminders_sent < 2) {
+        reminderToSend = '30 Min Reminder';
+        sub.reminders_sent = 2;
+      }
+      // Final reminder (1 or 5 mins)
+      else if (diffMinutes === sub.final_reminder_time && sub.reminders_sent < 3) {
+        reminderToSend = `Final ${sub.final_reminder_time} Min Reminder`;
+        sub.reminders_sent = 3;
+      }
+      
+      if (reminderToSend) {
+        if (sub.device_id) {
+          console.log(`[PUSH REMINDER: ${reminderToSend}] Sending to device ${sub.device_id} for event '${sub.title}'`);
+          const clientRes = clients.get(sub.device_id);
+          if (clientRes) {
+            clientRes.write(`data: ${JSON.stringify({ title: sub.title, message: reminderToSend })}\n\n`);
+          }
+        }
+        
+        if (sub.email) {
+          console.log(`[EMAIL REMINDER: ${reminderToSend}] Sending to email ${sub.email} for event '${sub.title}'`);
+          if (process.env.EMAIL_USER && process.env.EMAIL_PASS && process.env.EMAIL_USER !== 'your_email@gmail.com') {
+            transporter.sendMail({
+              from: `"PrismaX Events" <${process.env.EMAIL_USER}>`,
+              to: sub.email,
+              subject: `PrismaX Alert: ${sub.title} is starting soon!`,
+              text: `Hello!\n\nThis is your ${reminderToSend} for "${sub.title}".\nGet ready to join!\n\nBest,\nThe PrismaX Team`,
+              html: `
+                <div style="font-family: Arial, sans-serif; padding: 20px; background: #000; color: #fff; border-radius: 8px;">
+                  <h2 style="color: #d4af37;">PrismaX Reminder</h2>
+                  <p>This is your <strong>${reminderToSend}</strong> for <strong>${sub.title}</strong>.</p>
+                  <p>Get ready to join!</p>
+                  <hr style="border: 1px solid #333;" />
+                  <p style="color: #888; font-size: 12px;">You are receiving this because you subscribed to email notifications for this event.</p>
+                </div>
+              `
+            }).catch(err => console.error("Failed to send email:", err));
+          } else {
+            console.log("Email skipped: Credentials not configured in .env file.");
+          }
+        }
+
+        await runQuery('UPDATE subscriptions SET reminders_sent = ? WHERE id = ?', [sub.reminders_sent, sub.id]);
+      }
+    }
+  } catch (error) {
+    console.error('Scheduler error:', error);
+  }
+});
+
+app.listen(port, () => {
+  console.log(`Backend running at http://localhost:${port}`);
+});
