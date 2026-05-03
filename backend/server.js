@@ -127,7 +127,10 @@ app.post('/api/host-request', async (req, res) => {
 
 app.post('/api/admin/login', (req, res) => {
   const { username, password } = req.body;
-  if (username === 'ayush' && password === 'ayush@dxt1') {
+  const validUser = process.env.ADMIN_USER;
+  const validPass = process.env.ADMIN_PASS;
+  
+  if (validUser && validPass && username === validUser && password === validPass) {
     res.json({ success: true, token: 'fake-jwt-token' });
   } else {
     res.status(401).json({ success: false, message: 'Invalid credentials' });
