@@ -279,6 +279,7 @@ cron.schedule('* * * * *', async () => {
                   <p>This is your <strong>${reminderToSend}</strong>.</p>
                   <div style="background: #111; padding: 15px; border-radius: 8px; margin: 20px 0;">
                     <p style="margin: 5px 0;"><strong>🗓️ Time (IST):</strong> ${istTimeStr}</p>
+                    <p style="margin: 5px 0;"><strong>🌍 Type:</strong> <span style="text-transform: capitalize;">${sub.type}</span> Event</p>
                     ${sub.host_name ? `<p style="margin: 5px 0;"><strong>🎤 Host:</strong> ${sub.host_name}</p>` : ''}
                     <p style="margin: 15px 0 5px 0;"><strong>📝 Description:</strong></p>
                     <p style="margin: 0; color: #ccc;">${sub.description}</p>
