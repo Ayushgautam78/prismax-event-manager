@@ -90,7 +90,14 @@ app.get('/api/notifications/stream', (req, res) => {
 
   if (deviceId) {
     clients.set(deviceId, res);
+    
+    // Send a heartbeat every 30 seconds to keep Render connection alive
+    const heartbeat = setInterval(() => {
+      res.write(': keep-alive\n\n');
+    }, 30000);
+
     req.on('close', () => {
+      clearInterval(heartbeat);
       clients.delete(deviceId);
     });
   }
@@ -215,21 +222,32 @@ cron.schedule('* * * * *', async () => {
       
       let reminderToSend = null;
       
-      // 1 hour reminder
-      if (diffMinutes === 60 && sub.reminders_sent < 1) {
-        reminderToSend = '1 Hour Reminder';
+      // 6 hour reminder
+      if (diffMinutes <= 360 && diffMinutes > 180 && sub.reminders_sent < 1) {
+        reminderToSend = '6 Hour Reminder';
         sub.reminders_sent = 1;
       }
-      // 30 min reminder
-      else if (diffMinutes === 30 && sub.reminders_sent < 2) {
-        reminderToSend = '30 Min Reminder';
+      // 3 hour reminder
+      else if (diffMinutes <= 180 && diffMinutes > 60 && sub.reminders_sent < 2) {
+        reminderToSend = '3 Hour Reminder';
         sub.reminders_sent = 2;
       }
-      // Final reminder (1 or 5 mins)
-      else if (diffMinutes === sub.final_reminder_time && sub.reminders_sent < 3) {
-        reminderToSend = `Final ${sub.final_reminder_time} Min Reminder`;
+      // 1 hour reminder
+      else if (diffMinutes <= 60 && diffMinutes > 30 && sub.reminders_sent < 3) {
+        reminderToSend = '1 Hour Reminder';
         sub.reminders_sent = 3;
       }
+      // 30 min reminder
+      else if (diffMinutes <= 30 && diffMinutes > sub.final_reminder_time && sub.reminders_sent < 4) {
+        reminderToSend = '30 Min Reminder';
+        sub.reminders_sent = 4;
+      }
+      // Final reminder (1 or 5 mins)
+      else if (diffMinutes <= sub.final_reminder_time && diffMinutes >= 0 && sub.reminders_sent < 5) {
+        reminderToSend = `Final ${sub.final_reminder_time} Min Reminder`;
+        sub.reminders_sent = 5;
+      }
+
       
       if (reminderToSend) {
         if (sub.device_id) {
