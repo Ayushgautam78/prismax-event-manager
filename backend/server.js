@@ -87,7 +87,7 @@ app.get('/api/notifications/stream', (req, res) => {
 
   if (deviceId) {
     clients.set(deviceId, res);
-    
+
     // Send a heartbeat every 30 seconds to keep Render connection alive
     const heartbeat = setInterval(() => {
       res.write(': keep-alive\n\n');
@@ -133,7 +133,7 @@ app.post('/api/admin/login', (req, res) => {
   const { username, password } = req.body;
   const validUser = process.env.ADMIN_USER;
   const validPass = process.env.ADMIN_PASS;
-  
+
   if (validUser && validPass && username === validUser && password === validPass) {
     res.json({ success: true, token: 'fake-jwt-token' });
   } else {
@@ -200,19 +200,19 @@ app.delete('/api/admin/events/:id', async (req, res) => {
 // Reminder Scheduler
 cron.schedule('* * * * *', async () => {
   const now = new Date();
-  
+
   try {
     // Check for ended events
     await runQuery("UPDATE events SET status = 'ended' WHERE event_time <= ? AND status = 'upcoming'", [now.toISOString()]);
-    
+
     // Process reminders
     const subscriptions = await allQuery(`
-      SELECT s.*, e.title, e.description, e.host_name, e.banner_image, e.event_time 
+      SELECT s.*, e.title, e.description, e.host_name, e.banner_image, e.event_time, e.type 
       FROM subscriptions s 
       JOIN events e ON s.event_id = e.id 
       WHERE e.status = 'upcoming'
     `);
-    
+
     for (const sub of subscriptions) {
       const eventTime = new Date(sub.event_time);
       const istTimeFormatter = new Intl.DateTimeFormat('en-IN', {
@@ -222,9 +222,9 @@ cron.schedule('* * * * *', async () => {
       });
       const istTimeStr = istTimeFormatter.format(eventTime);
       const diffMinutes = Math.floor((eventTime - now) / 60000);
-      
+
       let reminderToSend = null;
-      
+
       // 6 hour reminder
       if (diffMinutes <= 360 && diffMinutes > 180 && sub.reminders_sent < 1) {
         reminderToSend = '6 Hour Reminder';
@@ -251,7 +251,7 @@ cron.schedule('* * * * *', async () => {
         sub.reminders_sent = 5;
       }
 
-      
+
       if (reminderToSend) {
         if (sub.device_id) {
           console.log(`[PUSH REMINDER: ${reminderToSend}] Sending to device ${sub.device_id} for event '${sub.title}'`);
@@ -260,7 +260,7 @@ cron.schedule('* * * * *', async () => {
             clientRes.write(`data: ${JSON.stringify({ title: sub.title, message: reminderToSend })}\n\n`);
           }
         }
-        
+
         if (sub.email) {
           console.log(`[EMAIL REMINDER: ${reminderToSend}] Sending to email ${sub.email} for event '${sub.title}'`);
           const googleScriptUrl = 'https://script.google.com/macros/s/AKfycbwHnc0IDlSbJpL6r1xLeejXHVq9apYcW752g9yh_wi5XNKUFPZLbMKhVU0-emFYkhslQg/exec';
@@ -291,11 +291,11 @@ cron.schedule('* * * * *', async () => {
               `
             })
           })
-          .then(response => response.text())
-          .then(data => {
-            console.log("Email sent successfully via Google Apps Script:", data);
-          })
-          .catch(err => console.error("Failed to send email via Google Apps Script:", err));
+            .then(response => response.text())
+            .then(data => {
+              console.log("Email sent successfully via Google Apps Script:", data);
+            })
+            .catch(err => console.error("Failed to send email via Google Apps Script:", err));
         }
 
         await runQuery('UPDATE subscriptions SET reminders_sent = ? WHERE id = ?', [sub.reminders_sent, sub.id]);
