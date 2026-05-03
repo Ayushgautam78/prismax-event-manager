@@ -82,6 +82,8 @@ app.get('/api/notifications/stream', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // Crucial for Render/Nginx to send data instantly
+  res.flushHeaders();
 
   if (deviceId) {
     clients.set(deviceId, res);
@@ -205,7 +207,7 @@ cron.schedule('* * * * *', async () => {
     
     // Process reminders
     const subscriptions = await allQuery(`
-      SELECT s.*, e.title, e.event_time 
+      SELECT s.*, e.title, e.description, e.host_name, e.banner_image, e.event_time 
       FROM subscriptions s 
       JOIN events e ON s.event_id = e.id 
       WHERE e.status = 'upcoming'
@@ -213,6 +215,12 @@ cron.schedule('* * * * *', async () => {
     
     for (const sub of subscriptions) {
       const eventTime = new Date(sub.event_time);
+      const istTimeFormatter = new Intl.DateTimeFormat('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        dateStyle: 'full',
+        timeStyle: 'short'
+      });
+      const istTimeStr = istTimeFormatter.format(eventTime);
       const diffMinutes = Math.floor((eventTime - now) / 60000);
       
       let reminderToSend = null;
@@ -255,7 +263,7 @@ cron.schedule('* * * * *', async () => {
         
         if (sub.email) {
           console.log(`[EMAIL REMINDER: ${reminderToSend}] Sending to email ${sub.email} for event '${sub.title}'`);
-          const googleScriptUrl = 'https://script.google.com/macros/s/AKfycbz7HHskXITIXuWI5hhVT87l8_lFJep9tOZqMpjvfD_OecyXRQxuwMk5gX3gIwCfiS_7-w/exec';
+          const googleScriptUrl = 'https://script.google.com/macros/s/AKfycbwHnc0IDlSbJpL6r1xLeejXHVq9apYcW752g9yh_wi5XNKUFPZLbMKhVU0-emFYkhslQg/exec';
           fetch(googleScriptUrl, {
             method: 'POST',
             redirect: 'follow',
@@ -267,8 +275,15 @@ cron.schedule('* * * * *', async () => {
               subject: `PrismaX Alert: ${sub.title} is starting soon!`,
               html: `
                 <div style="font-family: Arial, sans-serif; padding: 20px; background: #000; color: #fff; border-radius: 8px;">
-                  <h2 style="color: #d4af37;">PrismaX Reminder</h2>
-                  <p>This is your <strong>${reminderToSend}</strong> for <strong>${sub.title}</strong>.</p>
+                  ${sub.banner_image ? `<img src="${sub.banner_image}" alt="Event Banner" style="width: 100%; border-radius: 8px; margin-bottom: 20px;" />` : ''}
+                  <h2 style="color: #d4af37;">PrismaX Reminder: ${sub.title}</h2>
+                  <p>This is your <strong>${reminderToSend}</strong>.</p>
+                  <div style="background: #111; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                    <p style="margin: 5px 0;"><strong>🗓️ Time (IST):</strong> ${istTimeStr}</p>
+                    ${sub.host_name ? `<p style="margin: 5px 0;"><strong>🎤 Host:</strong> ${sub.host_name}</p>` : ''}
+                    <p style="margin: 15px 0 5px 0;"><strong>📝 Description:</strong></p>
+                    <p style="margin: 0; color: #ccc;">${sub.description}</p>
+                  </div>
                   <p>Get ready to join!</p>
                   <hr style="border: 1px solid #333;" />
                   <p style="color: #888; font-size: 12px;">You are receiving this because you subscribed to email notifications for this event.</p>
