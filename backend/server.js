@@ -275,7 +275,6 @@ cron.schedule('* * * * *', async () => {
               subject: `PrismaX Alert: ${sub.title} is starting soon!`,
               html: `
                 <div style="font-family: Arial, sans-serif; padding: 20px; background: #000; color: #fff; border-radius: 8px;">
-                  ${sub.banner_image ? `<img src="${sub.banner_image}" alt="Event Banner" style="width: 100%; border-radius: 8px; margin-bottom: 20px;" />` : ''}
                   <h2 style="color: #d4af37;">PrismaX Reminder: ${sub.title}</h2>
                   <p>This is your <strong>${reminderToSend}</strong>.</p>
                   <div style="background: #111; padding: 15px; border-radius: 8px; margin: 20px 0;">
