@@ -1,77 +1,94 @@
 import express from 'express';
 import cors from 'cors';
-import sqlite3 from 'sqlite3';
+import pg from 'pg';
+const { Pool } = pg;
 import cron from 'node-cron';
 import dotenv from 'dotenv';
 import { addMinutes, addHours, isBefore, parseISO } from 'date-fns';
-import dns from 'dns';
-
-// Force Node.js to use IPv4 instead of IPv6 for Render compatibility
-dns.setDefaultResultOrder('ipv4first');
 
 dotenv.config();
 
 const app = express();
-const port = 3001;
+const port = process.env.PORT || 8000;
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
-// Initialize SQLite Database
-const db = new sqlite3.Database('./database.sqlite', (err) => {
+// Initialize PostgreSQL Database (Neon + Koyeb)
+const connUrl = process.env.DATABASE_URL;
+
+if (!connUrl) {
+  console.error("FATAL: No DATABASE_URL found!");
+  process.exit(1);
+}
+
+const dbUrl = new URL(connUrl);
+console.log(`Connecting to DB: ${dbUrl.hostname} as ${dbUrl.username}`);
+
+const pool = new Pool({
+  host: dbUrl.hostname,
+  port: parseInt(dbUrl.port) || 5432,
+  user: dbUrl.username,
+  password: decodeURIComponent(dbUrl.password),
+  database: dbUrl.pathname.slice(1),
+  ssl: { rejectUnauthorized: false }
+});
+
+pool.connect((err, client, release) => {
   if (err) {
-    console.error('Error opening database', err);
+    console.error('Error connecting to PostgreSQL database', err);
   } else {
-    console.log('Database connected.');
-    db.run(`CREATE TABLE IF NOT EXISTS events (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT,
-      description TEXT,
-      event_time TEXT, -- Stored as UTC ISO string
-      type TEXT, -- 'global' or 'regional'
-      status TEXT DEFAULT 'upcoming',
-      host_name TEXT,
-      banner_image TEXT,
-      host_image TEXT
-    )`);
+    console.log('PostgreSQL Database connected successfully.');
+    release();
 
-    db.run(`CREATE TABLE IF NOT EXISTS host_requests (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT,
-      description TEXT,
-      host_name TEXT,
-      discord_name TEXT,
-      status TEXT DEFAULT 'pending'
-    )`);
+    pool.query(`CREATE TABLE IF NOT EXISTS events (
+        id SERIAL PRIMARY KEY,
+        title TEXT,
+        description TEXT,
+        event_time TEXT, -- Stored as UTC ISO string
+        type TEXT, -- 'global' or 'regional'
+        status TEXT DEFAULT 'upcoming',
+        host_name TEXT,
+        banner_image TEXT,
+        host_image TEXT
+      )`).catch(console.error);
 
-    db.run(`CREATE TABLE IF NOT EXISTS subscriptions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      event_id INTEGER,
-      email TEXT,
-      device_id TEXT,
-      reminders_sent INTEGER DEFAULT 0,
-      final_reminder_time INTEGER -- 1 or 5 (minutes before)
-    )`);
+    pool.query(`CREATE TABLE IF NOT EXISTS host_requests (
+        id SERIAL PRIMARY KEY,
+        title TEXT,
+        description TEXT,
+        host_name TEXT,
+        discord_name TEXT,
+        status TEXT DEFAULT 'pending'
+      )`).catch(console.error);
+
+    pool.query(`CREATE TABLE IF NOT EXISTS subscriptions (
+        id SERIAL PRIMARY KEY,
+        event_id INTEGER,
+        email TEXT,
+        device_id TEXT,
+        reminders_sent INTEGER DEFAULT 0,
+        final_reminder_time INTEGER -- 1 or 5 (minutes before)
+      )`).catch(console.error);
   }
 });
 
-// Helper to run queries as promises
-const runQuery = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) {
-      if (err) reject(err);
-      else resolve(this);
-    });
-  });
+// Helper to convert SQLite ? to Postgres $1, $2, etc.
+const convertSql = (sql) => {
+  let count = 1;
+  return sql.replace(/\?/g, () => `$${count++}`);
 };
 
-const allQuery = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
-  });
+// Helper to run queries as promises
+const runQuery = async (sql, params = []) => {
+  const pgSql = convertSql(sql);
+  return pool.query(pgSql, params);
+};
+
+const allQuery = async (sql, params = []) => {
+  const pgSql = convertSql(sql);
+  const res = await pool.query(pgSql, params);
+  return res.rows;
 };
 
 // Routes
@@ -95,7 +112,9 @@ app.get('/api/notifications/stream', (req, res) => {
 
     req.on('close', () => {
       clearInterval(heartbeat);
-      clients.delete(deviceId);
+      if (clients.get(deviceId) === res) {
+        clients.delete(deviceId);
+      }
     });
   }
 });
@@ -112,6 +131,21 @@ app.get('/api/events', async (req, res) => {
 app.post('/api/events/subscribe', async (req, res) => {
   const { eventId, email, deviceId, finalReminderTime } = req.body;
   try {
+    // Check if already subscribed
+    let query = 'SELECT id FROM subscriptions WHERE event_id = ? AND device_id = ?';
+    let params = [eventId, deviceId];
+    if (email) {
+      query += ' AND email = ?';
+      params.push(email);
+    } else {
+      query += ' AND email IS NULL';
+    }
+
+    const existing = await allQuery(query, params);
+    if (existing && existing.length > 0) {
+      return res.json({ success: true, message: 'Already subscribed' });
+    }
+
     await runQuery('INSERT INTO subscriptions (event_id, email, device_id, final_reminder_time) VALUES (?, ?, ?, ?)', [eventId, email || null, deviceId, finalReminderTime || 5]);
     res.json({ success: true, message: 'Subscribed successfully' });
   } catch (error) {
@@ -207,11 +241,11 @@ cron.schedule('* * * * *', async () => {
 
     // Process reminders
     const subscriptions = await allQuery(`
-      SELECT s.*, e.title, e.description, e.host_name, e.banner_image, e.event_time, e.type 
-      FROM subscriptions s 
-      JOIN events e ON s.event_id = e.id 
-      WHERE e.status = 'upcoming'
-    `);
+        SELECT s.*, e.title, e.description, e.host_name, e.banner_image, e.event_time, e.type 
+        FROM subscriptions s 
+        JOIN events e ON s.event_id = e.id 
+        WHERE e.status = 'upcoming'
+      `);
 
     for (const sub of subscriptions) {
       const eventTime = new Date(sub.event_time);
@@ -274,21 +308,21 @@ cron.schedule('* * * * *', async () => {
               to: sub.email,
               subject: `PrismaX Alert: ${sub.title} is starting soon!`,
               html: `
-                <div style="font-family: Arial, sans-serif; padding: 20px; background: #000; color: #fff; border-radius: 8px;">
-                  <h2 style="color: #d4af37;">PrismaX Reminder: ${sub.title}</h2>
-                  <p>This is your <strong>${reminderToSend}</strong>.</p>
-                  <div style="background: #111; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                    <p style="margin: 5px 0;"><strong>🗓️ Time (IST):</strong> ${istTimeStr}</p>
-                    <p style="margin: 5px 0;"><strong>🌍 Type:</strong> <span style="text-transform: capitalize;">${sub.type}</span> Event</p>
-                    ${sub.host_name ? `<p style="margin: 5px 0;"><strong>🎤 Host:</strong> ${sub.host_name}</p>` : ''}
-                    <p style="margin: 15px 0 5px 0;"><strong>📝 Description:</strong></p>
-                    <p style="margin: 0; color: #ccc;">${sub.description}</p>
+                  <div style="font-family: Arial, sans-serif; padding: 20px; background: #000; color: #fff; border-radius: 8px;">
+                    <h2 style="color: #d4af37;">PrismaX Reminder: ${sub.title}</h2>
+                    <p>This is your <strong>${reminderToSend}</strong>.</p>
+                    <div style="background: #111; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                      <p style="margin: 5px 0;"><strong>🗓️ Time (IST):</strong> ${istTimeStr}</p>
+                      <p style="margin: 5px 0;"><strong>🌍 Type:</strong> <span style="text-transform: capitalize;">${sub.type}</span> Event</p>
+                      ${sub.host_name ? `<p style="margin: 5px 0;"><strong>🎤 Host:</strong> ${sub.host_name}</p>` : ''}
+                      <p style="margin: 15px 0 5px 0;"><strong>📝 Description:</strong></p>
+                      <p style="margin: 0; color: #ccc;">${sub.description}</p>
+                    </div>
+                    <p>Get ready to join!</p>
+                    <hr style="border: 1px solid #333;" />
+                    <p style="color: #888; font-size: 12px;">You are receiving this because you subscribed to email notifications for this event.</p>
                   </div>
-                  <p>Get ready to join!</p>
-                  <hr style="border: 1px solid #333;" />
-                  <p style="color: #888; font-size: 12px;">You are receiving this because you subscribed to email notifications for this event.</p>
-                </div>
-              `
+                `
             })
           })
             .then(response => response.text())
