@@ -232,7 +232,7 @@ app.delete('/api/admin/events/:id', async (req, res) => {
 });
 
 // Reminder Scheduler
-cron.schedule('* * * * *', async () => {
+cron.schedule('*/5 * * * *', async () => {
   const now = new Date();
 
   try {
