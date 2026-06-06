@@ -86,7 +86,21 @@ export default function HostEvent() {
         alert('Your event request has been submitted and is pending admin approval.');
         navigate('/');
       } else {
-        alert('Failed to submit host request');
+        let errMsg = 'Failed to submit host request';
+        try {
+          const errData = await res.json();
+          if (errData && errData.error) {
+            errMsg += `: ${errData.error}`;
+          } else if (errData && errData.message) {
+            errMsg += `: ${errData.message}`;
+          }
+        } catch (e) {
+          try {
+            const text = await res.text();
+            if (text) errMsg += `: ${text.substring(0, 100)}`;
+          } catch (e2) {}
+        }
+        alert(errMsg);
       }
     } catch (err) {
       console.error(err);
