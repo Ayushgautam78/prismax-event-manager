@@ -106,7 +106,12 @@ try {
 const db = new Proxy({}, {
   get(target, prop) {
     if (initError) {
-      throw new Error(`Firebase failed to initialize: ${initError.message}`);
+      const rawKey = process.env.FIREBASE_PRIVATE_KEY || '';
+      const maskedRaw = rawKey.split('').map(c => {
+        if (/[a-zA-Z0-9+/=]/.test(c)) return 'X';
+        return c;
+      }).join('');
+      throw new Error(`Firebase failed to initialize: ${initError.message}. Masked Raw Key: [${maskedRaw}]`);
     }
     if (!dbInstance) {
       throw new Error('Firebase database instance is not initialized.');
