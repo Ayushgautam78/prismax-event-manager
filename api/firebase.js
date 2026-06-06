@@ -97,7 +97,15 @@ try {
   if (process.env.FIREBASE_PRIVATE_KEY) {
     const rawKey = process.env.FIREBASE_PRIVATE_KEY;
     const cleaned = normalizePrivateKey(rawKey);
-    keyDetails = `rawLength=${rawKey.length}, cleanedLength=${cleaned.length}, hasHeader=${cleaned.includes('-----BEGIN PRIVATE KEY-----')}, hasFooter=${cleaned.includes('-----END PRIVATE KEY-----')}, first30=${cleaned.substring(0, 30)}, last30=${cleaned.substring(cleaned.length - 30)}, newlines=${cleaned.split('\n').length - 1}`;
+    
+    // Analyze characters
+    const uniqueChars = Array.from(new Set(rawKey)).filter(c => !/[a-zA-Z0-9+/=]/.test(c));
+    const header = '-----BEGIN PRIVATE KEY-----';
+    const footer = '-----END PRIVATE KEY-----';
+    let base64Part = cleaned.replace(header, '').replace(footer, '').replace(/\s+/g, '');
+    const invalidBase64Chars = Array.from(new Set(base64Part)).filter(c => !/[a-zA-Z0-9+/=]/.test(c));
+    
+    keyDetails = `rawLength=${rawKey.length}, cleanedLength=${cleaned.length}, base64Length=${base64Part.length}, hasHeader=${cleaned.includes(header)}, hasFooter=${cleaned.includes(footer)}, uniqueNonBase64=${JSON.stringify(uniqueChars)}, invalidBase64InPayload=${JSON.stringify(invalidBase64Chars)}`;
   }
   initError = new Error(`${error.message} [Key details: ${keyDetails}]`);
 }
