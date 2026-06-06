@@ -195,6 +195,38 @@ app.post('/api/admin/events', async (req, res) => {
   }
 });
 
+// Update an event (admin)
+app.put('/api/admin/events/:id', async (req, res) => {
+  console.log(`[API] PUT /api/admin/events/${req.params.id} requested`);
+  const { id } = req.params;
+  const { title, description, eventTime, type, hostName, bannerImage, hostImage } = req.body;
+  try {
+    const eventRef = db.ref('events').child(id);
+    const docSnap = await eventRef.once('value');
+    
+    if (docSnap.exists()) {
+      const updates = {
+        title,
+        description,
+        event_time: eventTime,
+        type,
+        host_name: hostName
+      };
+      
+      if (bannerImage) updates.banner_image = bannerImage;
+      if (hostImage) updates.host_image = hostImage;
+      
+      await eventRef.update(updates);
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ error: 'Event not found' });
+    }
+  } catch (error) {
+    console.error('Error updating event:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Delete an event (admin)
 app.delete('/api/admin/events/:id', async (req, res) => {
   const { id } = req.params;
