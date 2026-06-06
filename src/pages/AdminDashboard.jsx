@@ -286,13 +286,13 @@ export default function AdminDashboard() {
   };
 
   const downloadCompletedEventsCSV = () => {
-    const completed = events.filter(evt => getEventStatus(evt) === 'ended');
+    const completed = events.filter(evt => getEventStatus(evt) === 'ended' && evt.type === 'regional');
     if (completed.length === 0) {
-      alert('No completed events found to export.');
+      alert('No completed regional events found to export.');
       return;
     }
 
-    const headers = ['S.No', 'Event Name', 'Event Date & Time (IST)', 'Type', 'Host Name', 'Discord Username', 'Status'];
+    const headers = ['S.No', 'Event Name', 'Event Date & Time (IST)', 'Host Name', 'Discord Username', 'Status'];
     
     const escapeCsv = (val) => {
       if (val === null || val === undefined) return '';
@@ -311,7 +311,6 @@ export default function AdminDashboard() {
         index + 1,
         evt.title || '',
         timeDisplay,
-        evt.type || '',
         evt.host_name || '',
         evt.discord_username || '',
         'ended'
@@ -496,7 +495,7 @@ export default function AdminDashboard() {
               style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
               onClick={downloadCompletedEventsCSV}
             >
-              Download Completed CSV ({events.filter(evt => getEventStatus(evt) === 'ended').length})
+              Download Completed CSV ({events.filter(evt => getEventStatus(evt) === 'ended' && evt.type === 'regional').length})
             </button>
           </div>
           {events.map(evt => {
