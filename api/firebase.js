@@ -6,6 +6,18 @@ dotenv.config();
 
 let db;
 
+const cleanEnvVar = (val) => {
+  if (!val) return '';
+  let str = val.trim();
+  if (str.startsWith('"') && str.endsWith('"')) {
+    str = str.substring(1, str.length - 1);
+  }
+  if (str.startsWith("'") && str.endsWith("'")) {
+    str = str.substring(1, str.length - 1);
+  }
+  return str.trim();
+};
+
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
   const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || 'serviceAccountKey.json';
@@ -21,12 +33,17 @@ if (!admin.apps.length) {
     };
   } else if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
     console.log('Initializing Firebase Admin using environment variables.');
-    projectId = process.env.FIREBASE_PROJECT_ID;
+    
+    projectId = cleanEnvVar(process.env.FIREBASE_PROJECT_ID);
+    const clientEmail = cleanEnvVar(process.env.FIREBASE_CLIENT_EMAIL);
+    let privateKey = cleanEnvVar(process.env.FIREBASE_PRIVATE_KEY);
+    privateKey = privateKey.replace(/\\n/g, '\n');
+
     appConfig = {
       credential: admin.credential.cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+        projectId,
+        clientEmail,
+        privateKey
       })
     };
   } else {
@@ -35,7 +52,8 @@ if (!admin.apps.length) {
   }
 
   // Set the Realtime Database URL
-  const databaseURL = process.env.FIREBASE_DATABASE_URL || `https://${projectId}-default-rtdb.firebaseio.com`;
+  const rawDbUrl = process.env.FIREBASE_DATABASE_URL;
+  const databaseURL = rawDbUrl ? cleanEnvVar(rawDbUrl) : `https://${projectId}-default-rtdb.firebaseio.com`;
   console.log(`Using Firebase Realtime Database URL: ${databaseURL}`);
   
   admin.initializeApp({
