@@ -16,6 +16,35 @@ const cleanEnvVar = (val) => {
   return str.trim();
 };
 
+const normalizePrivateKey = (key) => {
+  if (!key) return '';
+  
+  // Strip any wrapping quotes
+  let cleaned = key.trim();
+  if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
+    cleaned = cleaned.substring(1, cleaned.length - 1).trim();
+  }
+  if (cleaned.startsWith("'") && cleaned.endsWith("'")) {
+    cleaned = cleaned.substring(1, cleaned.length - 1).trim();
+  }
+
+  const header = '-----BEGIN PRIVATE KEY-----';
+  const footer = '-----END PRIVATE KEY-----';
+  
+  if (cleaned.includes(header) && cleaned.includes(footer)) {
+    // Extract the base64 part, strip literal \n strings, and remove all whitespace
+    const base64Part = cleaned
+      .replace(header, '')
+      .replace(footer, '')
+      .replace(/\\n/g, '')
+      .replace(/\s+/g, '');
+      
+    return `${header}\n${base64Part}\n${footer}`;
+  }
+  
+  return cleaned.replace(/\r/g, '').replace(/\\n/g, '\n');
+};
+
 let dbInstance;
 let initError = null;
 
@@ -38,8 +67,7 @@ try {
       
       projectId = cleanEnvVar(process.env.FIREBASE_PROJECT_ID);
       const clientEmail = cleanEnvVar(process.env.FIREBASE_CLIENT_EMAIL);
-      let privateKey = cleanEnvVar(process.env.FIREBASE_PRIVATE_KEY);
-      privateKey = privateKey.replace(/\\n/g, '\n');
+      const privateKey = normalizePrivateKey(process.env.FIREBASE_PRIVATE_KEY);
 
       appConfig = {
         credential: admin.credential.cert({
