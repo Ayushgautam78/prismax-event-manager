@@ -56,7 +56,7 @@ function EventCard({ event, currentTime }) {
             </div>
           )}
           
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '0.95rem' }}>{event.description}</p>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '0.95rem', whiteSpace: 'pre-wrap' }}>{event.description}</p>
           
           {event.banner_image && (
             <div style={{ position: 'relative', marginBottom: '1.5rem', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--card-border)' }}>
@@ -142,7 +142,7 @@ function PendingRequestCard({ request }) {
             </div>
           )}
           
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '0.9rem' }}>{request.description}</p>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>{request.description}</p>
           
           {request.banner_image && (
             <div style={{ position: 'relative', marginBottom: '1.2rem', borderRadius: '6px', overflow: 'hidden', border: '1px solid rgba(255, 255, 255, 0.05)', maxWidth: '400px' }}>

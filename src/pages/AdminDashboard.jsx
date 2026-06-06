@@ -301,7 +301,7 @@ export default function AdminDashboard() {
             return (
               <div key={req.id} className="card" style={{ marginBottom: '1rem' }}>
                 <h3 style={{ color: 'var(--gold-primary)' }}>{req.title}</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>{req.description}</p>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.5rem', whiteSpace: 'pre-wrap' }}>{req.description}</p>
                 <p style={{ marginBottom: '1rem', fontSize: '0.9rem' }}>
                   Host: <span style={{ color: 'var(--text-primary)' }}>{req.host_name}</span> <br/>
                   Discord: <span style={{ color: 'var(--text-primary)' }}>{req.discord_name}</span> <br/>
@@ -403,7 +403,7 @@ export default function AdminDashboard() {
             </div>
             <div className="form-group">
               <label className="form-label">Description</label>
-              <input type="text" name="description" className="form-control" required />
+              <textarea name="description" className="form-control" rows="3" required></textarea>
             </div>
             <div className="form-group">
               <label className="form-label">Event Banner Graphic</label>
