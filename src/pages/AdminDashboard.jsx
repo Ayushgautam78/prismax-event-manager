@@ -100,6 +100,8 @@ export default function AdminDashboard() {
   const [creatingEvent, setCreatingEvent] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [updatingEvent, setUpdatingEvent] = useState(false);
+  const [csvStartDate, setCsvStartDate] = useState('');
+  const [csvEndDate, setCsvEndDate] = useState('');
 
   const fetchData = async () => {
     try {
@@ -285,10 +287,32 @@ export default function AdminDashboard() {
     }
   };
 
+  const getFilteredRegionalEvents = () => {
+    let regional = events.filter(evt => evt.type === 'regional');
+    
+    if (csvStartDate) {
+      const startMs = new Date(`${csvStartDate}T00:00:00+05:30`).getTime();
+      regional = regional.filter(evt => {
+        if (!evt.event_time) return false;
+        return new Date(evt.event_time).getTime() >= startMs;
+      });
+    }
+    
+    if (csvEndDate) {
+      const endMs = new Date(`${csvEndDate}T23:59:59+05:30`).getTime();
+      regional = regional.filter(evt => {
+        if (!evt.event_time) return false;
+        return new Date(evt.event_time).getTime() <= endMs;
+      });
+    }
+    
+    return regional;
+  };
+
   const downloadCompletedEventsCSV = () => {
-    const regionalEvents = events.filter(evt => evt.type === 'regional');
+    const regionalEvents = getFilteredRegionalEvents();
     if (regionalEvents.length === 0) {
-      alert('No regional events found to export.');
+      alert('No regional events found matching the date filters.');
       return;
     }
 
@@ -491,15 +515,46 @@ export default function AdminDashboard() {
             </button>
           </form>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
             <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Manage Events</h2>
-            <button 
-              className="btn btn-secondary" 
-              style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
-              onClick={downloadCompletedEventsCSV}
-            >
-              Download Regional CSV ({events.filter(evt => evt.type === 'regional').length})
-            </button>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>From:</span>
+                <input 
+                  type="date" 
+                  value={csvStartDate} 
+                  onChange={(e) => setCsvStartDate(e.target.value)} 
+                  className="form-control" 
+                  style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', width: '120px' }} 
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>To:</span>
+                <input 
+                  type="date" 
+                  value={csvEndDate} 
+                  onChange={(e) => setCsvEndDate(e.target.value)} 
+                  className="form-control" 
+                  style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', width: '120px' }} 
+                />
+              </div>
+              {(csvStartDate || csvEndDate) && (
+                <button 
+                  className="btn btn-secondary" 
+                  style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: 'var(--danger)', borderColor: 'var(--danger)', background: 'transparent' }}
+                  onClick={() => { setCsvStartDate(''); setCsvEndDate(''); }}
+                >
+                  Clear
+                </button>
+              )}
+              <button 
+                className="btn btn-secondary" 
+                style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+                onClick={downloadCompletedEventsCSV}
+              >
+                Download Regional CSV ({getFilteredRegionalEvents().length})
+              </button>
+            </div>
           </div>
           {events.map(evt => {
             const status = getEventStatus(evt);
