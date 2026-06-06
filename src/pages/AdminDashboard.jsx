@@ -292,7 +292,7 @@ export default function AdminDashboard() {
       return;
     }
 
-    const headers = ['S.No', 'Event ID', 'Title', 'Event Time (IST)', 'Type', 'Host Name', 'Discord Username', 'Status'];
+    const headers = ['S.No', 'Event Name', 'Event Date & Time (IST)', 'Type', 'Host Name', 'Discord Username', 'Status'];
     
     const escapeCsv = (val) => {
       if (val === null || val === undefined) return '';
@@ -309,7 +309,6 @@ export default function AdminDashboard() {
       
       return [
         index + 1,
-        evt.id || '',
         evt.title || '',
         timeDisplay,
         evt.type || '',
