@@ -212,6 +212,7 @@ export default function AdminDashboard() {
           title: e.target.title.value,
           description: e.target.description.value,
           hostName: e.target.hostName.value,
+          discordUsername: e.target.discordUsername.value,
           eventTime: eventTime,
           type: e.target.eventType.value,
           bannerImage: bannerBase64,
@@ -262,6 +263,7 @@ export default function AdminDashboard() {
           title: e.target.title.value,
           description: e.target.description.value,
           hostName: e.target.hostName.value,
+          discordUsername: e.target.discordUsername.value,
           eventTime: eventTime,
           type: e.target.eventType.value,
           bannerImage: bannerBase64,
@@ -290,7 +292,7 @@ export default function AdminDashboard() {
       return;
     }
 
-    const headers = ['S.No', 'Event ID', 'Title', 'Event Time (IST)', 'Type', 'Host Name', 'Status'];
+    const headers = ['S.No', 'Event ID', 'Title', 'Event Time (IST)', 'Type', 'Host Name', 'Discord Username', 'Status'];
     
     const escapeCsv = (val) => {
       if (val === null || val === undefined) return '';
@@ -312,6 +314,7 @@ export default function AdminDashboard() {
         timeDisplay,
         evt.type || '',
         evt.host_name || '',
+        evt.discord_username || '',
         'ended'
       ].map(escapeCsv).join(',');
     });
@@ -447,8 +450,12 @@ export default function AdminDashboard() {
               <input type="text" name="title" className="form-control" required />
             </div>
             <div className="form-group">
-              <label className="form-label">Host Name</label>
-              <input type="text" name="hostName" className="form-control" required />
+              <label className="form-label">Host Name (Display Name)</label>
+              <input type="text" name="hostName" className="form-control" placeholder="E.g., Ayush Gautam" required />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Discord Username (Not numeric User ID)</label>
+              <input type="text" name="discordUsername" className="form-control" placeholder="E.g., @ayush_gautam (or ayushgautam)" required />
             </div>
             <div className="form-group">
               <label className="form-label">Host Image</label>
@@ -505,6 +512,9 @@ export default function AdminDashboard() {
                 <div>
                   <h4 style={{ color: evt.type === 'global' ? 'var(--gold-primary)' : 'var(--text-primary)' }}>{evt.title} <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', marginLeft: '8px' }}>{evt.type}</span></h4>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                    Host: <strong style={{ color: 'var(--text-primary)' }}>{evt.host_name}</strong> {evt.discord_username && <>(Discord: {evt.discord_username})</>}
+                  </p>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
                     Status: <span style={{ color: statusColors[status], fontWeight: '600' }}>{status.toUpperCase()}</span>
                   </p>
                 </div>
@@ -553,8 +563,12 @@ export default function AdminDashboard() {
                   <input type="text" name="title" className="form-control" defaultValue={editingEvent.title} required />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Host Name</label>
+                  <label className="form-label">Host Name (Display Name)</label>
                   <input type="text" name="hostName" className="form-control" defaultValue={editingEvent.host_name} required />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Discord Username (Not numeric User ID)</label>
+                  <input type="text" name="discordUsername" className="form-control" defaultValue={editingEvent.discord_username || ''} placeholder="E.g., @ayush_gautam (or ayushgautam)" required />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Host Image (Optional - leaves current image if empty)</label>

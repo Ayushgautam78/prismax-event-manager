@@ -145,6 +145,7 @@ app.post('/api/admin/requests/:id/approve', async (req, res) => {
         event_time: eventTime,
         type: 'regional',
         host_name: request.host_name,
+        discord_username: request.discord_name || null,
         banner_image: bannerImage || request.banner_image || null,
         host_image: hostImage || request.host_image || null,
         status: 'upcoming'
@@ -176,7 +177,7 @@ app.post('/api/admin/requests/:id/reject', async (req, res) => {
 
 // Create an event manually (admin)
 app.post('/api/admin/events', async (req, res) => {
-  const { title, description, eventTime, type, hostName, bannerImage, hostImage } = req.body;
+  const { title, description, eventTime, type, hostName, discordUsername, bannerImage, hostImage } = req.body;
   try {
     await db.ref('events').push({
       title,
@@ -184,6 +185,7 @@ app.post('/api/admin/events', async (req, res) => {
       event_time: eventTime,
       type,
       host_name: hostName,
+      discord_username: discordUsername || null,
       banner_image: bannerImage || null,
       host_image: hostImage || null,
       status: 'upcoming'
@@ -199,7 +201,7 @@ app.post('/api/admin/events', async (req, res) => {
 app.put('/api/admin/events/:id', async (req, res) => {
   console.log(`[API] PUT /api/admin/events/${req.params.id} requested`);
   const { id } = req.params;
-  const { title, description, eventTime, type, hostName, bannerImage, hostImage } = req.body;
+  const { title, description, eventTime, type, hostName, discordUsername, bannerImage, hostImage } = req.body;
   try {
     const eventRef = db.ref('events').child(id);
     const docSnap = await eventRef.once('value');
@@ -210,7 +212,8 @@ app.put('/api/admin/events/:id', async (req, res) => {
         description,
         event_time: eventTime,
         type,
-        host_name: hostName
+        host_name: hostName,
+        discord_username: discordUsername || null
       };
       
       if (bannerImage) updates.banner_image = bannerImage;

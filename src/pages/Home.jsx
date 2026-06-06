@@ -52,6 +52,11 @@ function EventCard({ event, currentTime }) {
               )}
               <p style={{ color: 'var(--text-primary)', margin: 0, fontSize: '0.9rem', fontWeight: '500' }}>
                 Host: <span style={{ color: 'var(--gold-secondary)' }}>{event.host_name}</span>
+                {event.discord_username && (
+                  <span style={{ color: 'var(--text-secondary)', fontWeight: '400', fontSize: '0.85rem' }}>
+                    {" "}(Discord: <span style={{ color: 'var(--text-primary)' }}>{event.discord_username}</span>)
+                  </span>
+                )}
               </p>
             </div>
           )}

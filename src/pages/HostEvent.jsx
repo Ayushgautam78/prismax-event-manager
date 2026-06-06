@@ -123,12 +123,12 @@ export default function HostEvent() {
 
       <form onSubmit={handleSubmit} className="card">
         <div className="form-group">
-          <label className="form-label">Host Name</label>
-          <input type="text" name="hostName" className="form-control" required />
+          <label className="form-label">Host Display Name (Your Name)</label>
+          <input type="text" name="hostName" className="form-control" placeholder="E.g., Ayush Gautam" required />
         </div>
         <div className="form-group">
-          <label className="form-label">Discord Name</label>
-          <input type="text" name="discordName" className="form-control" required />
+          <label className="form-label">Discord Username (Not numeric User ID)</label>
+          <input type="text" name="discordName" className="form-control" placeholder="E.g., @ayush_gautam (or ayushgautam)" required />
         </div>
         <div className="form-group">
           <label className="form-label">Host Profile Photo (PFP)</label>
