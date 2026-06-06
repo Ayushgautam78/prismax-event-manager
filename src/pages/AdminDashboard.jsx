@@ -286,9 +286,9 @@ export default function AdminDashboard() {
   };
 
   const downloadCompletedEventsCSV = () => {
-    const completed = events.filter(evt => getEventStatus(evt) === 'ended' && evt.type === 'regional');
-    if (completed.length === 0) {
-      alert('No completed regional events found to export.');
+    const regionalEvents = events.filter(evt => evt.type === 'regional');
+    if (regionalEvents.length === 0) {
+      alert('No regional events found to export.');
       return;
     }
 
@@ -303,9 +303,12 @@ export default function AdminDashboard() {
       return str;
     };
 
-    const rows = completed.map((evt, index) => {
+    const rows = regionalEvents.map((evt, index) => {
       const { dateStr, istTime } = formatEventTime(evt.event_time);
       const timeDisplay = `${dateStr} ${istTime}`;
+      
+      const dynamicStatus = getEventStatus(evt);
+      const statusText = dynamicStatus === 'ended' ? 'completed' : dynamicStatus;
       
       return [
         index + 1,
@@ -313,7 +316,7 @@ export default function AdminDashboard() {
         timeDisplay,
         evt.host_name || '',
         evt.discord_username || '',
-        'ended'
+        statusText
       ].map(escapeCsv).join(',');
     });
 
@@ -322,7 +325,7 @@ export default function AdminDashboard() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `completed_events_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `regional_events_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -495,7 +498,7 @@ export default function AdminDashboard() {
               style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
               onClick={downloadCompletedEventsCSV}
             >
-              Download Completed CSV ({events.filter(evt => getEventStatus(evt) === 'ended' && evt.type === 'regional').length})
+              Download Regional CSV ({events.filter(evt => evt.type === 'regional').length})
             </button>
           </div>
           {events.map(evt => {
