@@ -39,6 +39,17 @@ const parseIstDateTime = (isoString) => {
   }
 };
 
+const getEventStatus = (evt) => {
+  if (evt.status === 'ended') return 'ended';
+  if (!evt.event_time) return 'upcoming';
+  const eventMs = new Date(evt.event_time).getTime();
+  const currentMs = Date.now();
+  const oneHourMs = 60 * 60 * 1000;
+  if (currentMs > eventMs + oneHourMs) return 'ended';
+  if (currentMs >= eventMs) return 'ongoing';
+  return 'upcoming';
+};
+
 const compressImage = (file, maxWidth, maxHeight, quality = 0.75) => {
   return new Promise((resolve, reject) => {
     if (!file) return resolve(null);
@@ -220,7 +231,7 @@ export default function AdminDashboard() {
   };
 
   const downloadCompletedEventsCSV = () => {
-    const completed = events.filter(evt => evt.status === 'ended');
+    const completed = events.filter(evt => getEventStatus(evt) === 'ended');
     if (completed.length === 0) {
       alert('No completed events found to export.');
       return;
@@ -248,7 +259,7 @@ export default function AdminDashboard() {
         timeDisplay,
         evt.type || '',
         evt.host_name || '',
-        evt.status || ''
+        'ended'
       ].map(escapeCsv).join(',');
     });
 
@@ -426,18 +437,28 @@ export default function AdminDashboard() {
               style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
               onClick={downloadCompletedEventsCSV}
             >
-              Download Completed CSV ({events.filter(evt => evt.status === 'ended').length})
+              Download Completed CSV ({events.filter(evt => getEventStatus(evt) === 'ended').length})
             </button>
           </div>
-          {events.map(evt => (
-            <div key={evt.id} className="card" style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h4 style={{ color: evt.type === 'global' ? 'var(--gold-primary)' : 'var(--text-primary)' }}>{evt.title} <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', marginLeft: '8px' }}>{evt.type}</span></h4>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Status: {evt.status}</p>
+          {events.map(evt => {
+            const status = getEventStatus(evt);
+            const statusColors = {
+              ended: 'var(--text-secondary)',
+              ongoing: 'var(--success)',
+              upcoming: 'var(--gold-primary)'
+            };
+            return (
+              <div key={evt.id} className="card" style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h4 style={{ color: evt.type === 'global' ? 'var(--gold-primary)' : 'var(--text-primary)' }}>{evt.title} <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', marginLeft: '8px' }}>{evt.type}</span></h4>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                    Status: <span style={{ color: statusColors[status], fontWeight: '600' }}>{status.toUpperCase()}</span>
+                  </p>
+                </div>
+                <button className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={() => handleDelete(evt.id)}>Delete</button>
               </div>
-              <button className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={() => handleDelete(evt.id)}>Delete</button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

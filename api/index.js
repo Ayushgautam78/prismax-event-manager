@@ -31,6 +31,32 @@ app.get('/api/events', async (req, res) => {
     const snapshot = await db.ref('events').once('value');
     console.log('[API] Events fetched successfully');
     const events = formatSnapshot(snapshot);
+
+    // Automatically check for ended events and update their status in Firebase
+    const now = Date.now();
+    const oneHourMs = 60 * 60 * 1000;
+    const updates = {};
+    let hasUpdates = false;
+
+    events.forEach(evt => {
+      if (evt.status !== 'ended' && evt.event_time) {
+        const eventMs = new Date(evt.event_time).getTime();
+        if (now > eventMs + oneHourMs) {
+          updates[`events/${evt.id}/status`] = 'ended';
+          evt.status = 'ended'; // update local representation
+          hasUpdates = true;
+        }
+      }
+    });
+
+    if (hasUpdates) {
+      console.log('[API] Automatically updating ended events in Firebase:', Object.keys(updates));
+      try {
+        await db.ref().update(updates);
+      } catch (dbErr) {
+        console.error('Error updating ended events status in Firebase:', dbErr);
+      }
+    }
     
     // Sort by event_time ascending
     events.sort((a, b) => {

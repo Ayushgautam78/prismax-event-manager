@@ -13,15 +13,27 @@ const downloadBase64Image = (base64String, fileName) => {
   document.body.removeChild(link);
 };
 
-function EventCard({ event }) {
+function EventCard({ event, currentTime }) {
   const { dateStr, istTime } = formatEventTime(event.event_time);
-  const isEnded = event.status === 'ended';
+  
+  const eventMs = new Date(event.event_time).getTime();
+  const oneHourMs = 60 * 60 * 1000;
+  const isOngoing = currentTime >= eventMs && currentTime <= eventMs + oneHourMs;
+  const isEnded = event.status === 'ended' || currentTime > eventMs + oneHourMs;
 
   return (
     <div className={`card ${isEnded ? 'ended' : ''}`} style={{ marginBottom: '1.5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ width: '100%' }}>
-          <h3 style={{ fontSize: '1.4rem', marginBottom: '0.5rem', color: 'var(--gold-primary)' }}>{event.title}</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <h3 style={{ fontSize: '1.4rem', color: 'var(--gold-primary)', margin: 0 }}>{event.title}</h3>
+            {isOngoing && (
+              <span style={{ fontSize: '0.75rem', color: 'var(--success)', background: 'rgba(74,224,125,0.1)', padding: '3px 10px', borderRadius: '12px', border: '1px solid rgba(74,224,125,0.3)', display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: '600' }}>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--success)', display: 'inline-block', animation: 'pulse 1.5s infinite' }}></span>
+                Ongoing
+              </span>
+            )}
+          </div>
           
           {event.host_name && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>
@@ -81,6 +93,9 @@ function EventCard({ event }) {
               <span>&bull;</span>
               <span>{istTime}</span>
             </div>
+            {isOngoing && (
+              <span style={{ padding: '0.4rem 0.8rem', background: 'rgba(74,224,125,0.15)', color: 'var(--success)', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600' }}>Ongoing</span>
+            )}
             {isEnded && (
               <span style={{ padding: '0.4rem 0.8rem', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', fontSize: '0.85rem' }}>Ended</span>
             )}
@@ -177,6 +192,14 @@ export default function Home() {
   const [events, setEvents] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [showPendingModal, setShowPendingModal] = useState(false);
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 5000); // Check/update status every 5 seconds
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (showPendingModal) {
@@ -218,8 +241,14 @@ export default function Home() {
   }, []);
 
   const safeEvents = Array.isArray(events) ? events : [];
-  const globalEvents = safeEvents.filter(e => e.type === 'global');
-  const regionalEvents = safeEvents.filter(e => e.type === 'regional');
+  const activeEvents = safeEvents.filter(e => {
+    if (e.status === 'ended') return false;
+    const eventMs = new Date(e.event_time).getTime();
+    const oneHourMs = 60 * 60 * 1000;
+    return currentTime <= eventMs + oneHourMs;
+  });
+  const globalEvents = activeEvents.filter(e => e.type === 'global');
+  const regionalEvents = activeEvents.filter(e => e.type === 'regional');
 
   return (
     <div className="container" style={{ paddingTop: '3rem', paddingBottom: '4rem' }}>
@@ -255,7 +284,7 @@ export default function Home() {
         <h2 style={{ fontSize: '1.8rem', marginBottom: '2rem', borderBottom: '1px solid var(--card-border)', paddingBottom: '1rem' }}>Global Events</h2>
         {globalEvents.length === 0 ? <p style={{ color: 'var(--text-secondary)' }}>No upcoming global events.</p> : null}
         {globalEvents.map(e => (
-          <EventCard key={e.id} event={e} />
+          <EventCard key={e.id} event={e} currentTime={currentTime} />
         ))}
       </section>
 
@@ -268,7 +297,7 @@ export default function Home() {
         </div>
         {regionalEvents.length === 0 ? <p style={{ color: 'var(--text-secondary)' }}>No upcoming regional events.</p> : null}
         {regionalEvents.map(e => (
-          <EventCard key={e.id} event={e} />
+          <EventCard key={e.id} event={e} currentTime={currentTime} />
         ))}
       </section>
 
