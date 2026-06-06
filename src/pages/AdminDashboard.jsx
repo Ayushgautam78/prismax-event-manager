@@ -290,7 +290,7 @@ export default function AdminDashboard() {
       return;
     }
 
-    const headers = ['Event ID', 'Title', 'Description', 'Event Time (IST)', 'Type', 'Host Name', 'Status'];
+    const headers = ['S.No', 'Event ID', 'Title', 'Event Time (IST)', 'Type', 'Host Name', 'Status'];
     
     const escapeCsv = (val) => {
       if (val === null || val === undefined) return '';
@@ -301,14 +301,14 @@ export default function AdminDashboard() {
       return str;
     };
 
-    const rows = completed.map(evt => {
+    const rows = completed.map((evt, index) => {
       const { dateStr, istTime } = formatEventTime(evt.event_time);
       const timeDisplay = `${dateStr} ${istTime}`;
       
       return [
+        index + 1,
         evt.id || '',
         evt.title || '',
-        evt.description || '',
         timeDisplay,
         evt.type || '',
         evt.host_name || '',
