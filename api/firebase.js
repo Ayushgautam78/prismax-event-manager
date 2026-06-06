@@ -93,7 +93,13 @@ try {
   dbInstance = admin.database();
 } catch (error) {
   console.error('Firebase initialization error caught:', error);
-  initError = error;
+  let keyDetails = 'none';
+  if (process.env.FIREBASE_PRIVATE_KEY) {
+    const rawKey = process.env.FIREBASE_PRIVATE_KEY;
+    const cleaned = normalizePrivateKey(rawKey);
+    keyDetails = `rawLength=${rawKey.length}, cleanedLength=${cleaned.length}, hasHeader=${cleaned.includes('-----BEGIN PRIVATE KEY-----')}, hasFooter=${cleaned.includes('-----END PRIVATE KEY-----')}, first30=${cleaned.substring(0, 30)}, last30=${cleaned.substring(cleaned.length - 30)}, newlines=${cleaned.split('\n').length - 1}`;
+  }
+  initError = new Error(`${error.message} [Key details: ${keyDetails}]`);
 }
 
 // Export a Proxy for db to delay throwing error until request time
