@@ -52,7 +52,14 @@ function AdminLogin() {
           password: e.target.password.value
         })
       });
-      const data = await res.json();
+      
+      const responseText = await res.text();
+      let data = {};
+      let isJson = false;
+      try {
+        data = JSON.parse(responseText);
+        isJson = true;
+      } catch (e) {}
       
       if (res.ok && data.success) {
         // Save session valid for 7 days in localStorage
@@ -63,11 +70,15 @@ function AdminLogin() {
         localStorage.setItem('adminSession', JSON.stringify(session));
         navigate('/admin/dashboard');
       } else {
-        alert(data.message || 'Invalid credentials');
+        if (isJson) {
+          alert(data.message || 'Invalid credentials');
+        } else {
+          alert(`Error during login: ${res.status} ${res.statusText} - ${responseText.substring(0, 150)}`);
+        }
       }
     } catch (err) {
       console.error(err);
-      alert('Error during login');
+      alert(`Error during login: ${err.message}`);
     }
   };
 

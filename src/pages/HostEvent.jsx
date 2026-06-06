@@ -82,23 +82,27 @@ export default function HostEvent() {
         body: JSON.stringify(payload)
       });
       
+      const responseText = await res.text();
+      let errData = {};
+      let isJson = false;
+      try {
+        errData = JSON.parse(responseText);
+        isJson = true;
+      } catch (e) {}
+      
       if (res.ok) {
         alert('Your event request has been submitted and is pending admin approval.');
         navigate('/');
       } else {
         let errMsg = 'Failed to submit host request';
-        try {
-          const errData = await res.json();
-          if (errData && errData.error) {
+        if (isJson) {
+          if (errData.error) {
             errMsg += `: ${errData.error}`;
-          } else if (errData && errData.message) {
+          } else if (errData.message) {
             errMsg += `: ${errData.message}`;
           }
-        } catch (e) {
-          try {
-            const text = await res.text();
-            if (text) errMsg += `: ${text.substring(0, 100)}`;
-          } catch (e2) {}
+        } else {
+          errMsg += `: ${res.status} ${res.statusText} - ${responseText.substring(0, 150)}`;
         }
         alert(errMsg);
       }
