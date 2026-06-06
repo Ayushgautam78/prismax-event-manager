@@ -16,6 +16,14 @@ const cleanEnvVar = (val) => {
   return str.trim();
 };
 
+const wrapString = (str, width) => {
+  const r = [];
+  for (let i = 0; i < str.length; i += width) {
+    r.push(str.substring(i, i + width));
+  }
+  return r.join('\n');
+};
+
 const normalizePrivateKey = (key) => {
   if (!key) return '';
   
@@ -39,7 +47,10 @@ const normalizePrivateKey = (key) => {
       .split('\\n').join('')
       .replace(/\s+/g, '');
       
-    return `${header}\n${base64Part}\n${footer}`;
+    // Wrap the base64 payload at 64 characters
+    const wrappedBase64 = wrapString(base64Part, 64);
+      
+    return `${header}\n${wrappedBase64}\n${footer}`;
   }
   
   return cleaned.replace(/\r/g, '').split('\\n').join('\n');
