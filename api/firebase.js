@@ -36,13 +36,13 @@ const normalizePrivateKey = (key) => {
     const base64Part = cleaned
       .replace(header, '')
       .replace(footer, '')
-      .replace(/\\n/g, '')
+      .split('\\n').join('')
       .replace(/\s+/g, '');
       
     return `${header}\n${base64Part}\n${footer}`;
   }
   
-  return cleaned.replace(/\r/g, '').replace(/\\n/g, '\n');
+  return cleaned.replace(/\r/g, '').split('\\n').join('\n');
 };
 
 let dbInstance;
