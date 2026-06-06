@@ -219,6 +219,50 @@ export default function AdminDashboard() {
     }
   };
 
+  const downloadCompletedEventsCSV = () => {
+    const completed = events.filter(evt => evt.status === 'ended');
+    if (completed.length === 0) {
+      alert('No completed events found to export.');
+      return;
+    }
+
+    const headers = ['Event ID', 'Title', 'Description', 'Event Time (IST)', 'Type', 'Host Name', 'Status'];
+    
+    const escapeCsv = (val) => {
+      if (val === null || val === undefined) return '';
+      const str = String(val);
+      if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const rows = completed.map(evt => {
+      const { dateStr, istTime } = formatEventTime(evt.event_time);
+      const timeDisplay = `${dateStr} ${istTime}`;
+      
+      return [
+        evt.id || '',
+        evt.title || '',
+        evt.description || '',
+        timeDisplay,
+        evt.type || '',
+        evt.host_name || '',
+        evt.status || ''
+      ].map(escapeCsv).join(',');
+    });
+
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `completed_events_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (loading) {
     return (
       <div className="container" style={{ paddingTop: '4rem', textAlign: 'center' }}>
@@ -375,7 +419,16 @@ export default function AdminDashboard() {
             </button>
           </form>
 
-          <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem' }}>Manage Events</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Manage Events</h2>
+            <button 
+              className="btn btn-secondary" 
+              style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+              onClick={downloadCompletedEventsCSV}
+            >
+              Download Completed CSV ({events.filter(evt => evt.status === 'ended').length})
+            </button>
+          </div>
           {events.map(evt => (
             <div key={evt.id} className="card" style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
