@@ -192,13 +192,18 @@ export default function AdminDashboard() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('adminSession');
-    navigate('/admin/login');
+    if (confirm('Are you sure you want to logout?')) {
+      localStorage.removeItem('adminSession');
+      navigate('/admin/login');
+    }
   };
 
   const handleCreateGlobal = async (e) => {
     e.preventDefault();
     if (creatingEvent) return;
+    if (!confirm('Are you sure you want to create this event?')) {
+      return;
+    }
     setCreatingEvent(true);
 
     try {
@@ -251,6 +256,9 @@ export default function AdminDashboard() {
   const handleUpdateEvent = async (e) => {
     e.preventDefault();
     if (updatingEvent || !editingEvent) return;
+    if (!confirm('Are you sure you want to save changes to this event?')) {
+      return;
+    }
     setUpdatingEvent(true);
 
     try {
@@ -430,6 +438,10 @@ export default function AdminDashboard() {
                   e.preventDefault();
                   if (isSubmitting) return;
 
+                  if (!confirm('Are you sure you want to approve this host request?')) {
+                    return;
+                  }
+
                   const timeParts = e.target.timeString.value.split(':');
                   let hour = parseInt(timeParts[0], 10);
                   const minute = timeParts[1];
@@ -475,7 +487,17 @@ export default function AdminDashboard() {
                     <button type="submit" className="btn btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }} disabled={isSubmitting}>
                       {isSubmitting ? 'Approving...' : 'Approve'}
                     </button>
-                    <button type="button" className="btn btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={() => handleAction(req.id, `/api/admin/requests/${req.id}/reject`)} disabled={isSubmitting}>
+                    <button 
+                      type="button" 
+                      className="btn btn-secondary" 
+                      style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', color: 'var(--danger)', borderColor: 'var(--danger)' }} 
+                      onClick={() => {
+                        if (confirm('Are you sure you want to reject this host request?')) {
+                          handleAction(req.id, `/api/admin/requests/${req.id}/reject`);
+                        }
+                      }} 
+                      disabled={isSubmitting}
+                    >
                       {isSubmitting ? 'Rejecting...' : 'Reject'}
                     </button>
                   </div>

@@ -47,6 +47,9 @@ export default function HostEvent() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (submitting) return;
+    if (!confirm('Are you sure you want to submit this event request?')) {
+      return;
+    }
     setSubmitting(true);
     
     try {
