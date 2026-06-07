@@ -207,6 +207,16 @@ app.put('/api/admin/events/:id', async (req, res) => {
     const docSnap = await eventRef.once('value');
     
     if (docSnap.exists()) {
+      const event = docSnap.val();
+      const now = Date.now();
+      const oneHourMs = 60 * 60 * 1000;
+      const eventMs = new Date(event.event_time || 0).getTime();
+      const isEnded = event.status === 'ended' || now > eventMs + oneHourMs;
+
+      if (isEnded) {
+        return res.status(403).json({ error: 'Cannot edit completed/ended events.' });
+      }
+
       const updates = {
         title,
         description,
@@ -234,8 +244,25 @@ app.put('/api/admin/events/:id', async (req, res) => {
 app.delete('/api/admin/events/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    await db.ref('events').child(id).remove();
-    res.json({ success: true });
+    const eventRef = db.ref('events').child(id);
+    const docSnap = await eventRef.once('value');
+    
+    if (docSnap.exists()) {
+      const event = docSnap.val();
+      const now = Date.now();
+      const oneHourMs = 60 * 60 * 1000;
+      const eventMs = new Date(event.event_time || 0).getTime();
+      const isEnded = event.status === 'ended' || now > eventMs + oneHourMs;
+
+      if (isEnded) {
+        return res.status(403).json({ error: 'Cannot delete completed/ended events.' });
+      }
+
+      await eventRef.remove();
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ error: 'Event not found' });
+    }
   } catch (error) {
     console.error('Error deleting event:', error);
     res.status(500).json({ error: error.message });

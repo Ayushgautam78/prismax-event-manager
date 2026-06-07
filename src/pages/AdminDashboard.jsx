@@ -102,6 +102,7 @@ export default function AdminDashboard() {
   const [updatingEvent, setUpdatingEvent] = useState(false);
   const [csvStartDate, setCsvStartDate] = useState('');
   const [csvEndDate, setCsvEndDate] = useState('');
+  const [showEndedModal, setShowEndedModal] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -142,6 +143,17 @@ export default function AdminDashboard() {
 
     fetchData();
   }, [navigate]);
+
+  useEffect(() => {
+    if (showEndedModal || editingEvent) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showEndedModal, editingEvent]);
 
   const handleAction = async (requestId, endpoint, body = null) => {
     if (submittingMap[requestId]) return;
@@ -365,11 +377,24 @@ export default function AdminDashboard() {
 
   return (
     <div className="container" style={{ paddingTop: '2rem', paddingBottom: '4rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem', borderBottom: '1px solid var(--card-border)', paddingBottom: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem', borderBottom: '1px solid var(--card-border)', paddingBottom: '1rem', flexWrap: 'wrap', gap: '10px' }}>
         <h1 className="gold-text" style={{ margin: 0, fontSize: '2.5rem' }}>Admin Dashboard</h1>
-        <button className="btn btn-secondary" onClick={handleLogout} style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}>
-          Logout
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button 
+            className="btn btn-secondary" 
+            onClick={() => setShowEndedModal(true)} 
+            style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+          >
+            View Ended Events ({events.filter(evt => getEventStatus(evt) === 'ended').length})
+          </button>
+          <button 
+            className="btn btn-secondary" 
+            onClick={handleLogout} 
+            style={{ color: 'var(--danger)', borderColor: 'var(--danger)', padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
       <div className="admin-grid">
@@ -556,43 +581,46 @@ export default function AdminDashboard() {
               </button>
             </div>
           </div>
-          {events.map(evt => {
-            const status = getEventStatus(evt);
-            const statusColors = {
-              ended: 'var(--text-secondary)',
-              ongoing: 'var(--success)',
-              upcoming: 'var(--gold-primary)'
-            };
-            return (
-              <div key={evt.id} className="card" style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <h4 style={{ color: evt.type === 'global' ? 'var(--gold-primary)' : 'var(--text-primary)' }}>{evt.title} <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', marginLeft: '8px' }}>{evt.type}</span></h4>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                    Host: <strong style={{ color: 'var(--text-primary)' }}>{evt.host_name}</strong> {evt.discord_username && <>(Discord: {evt.discord_username})</>}
-                  </p>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                    Status: <span style={{ color: statusColors[status], fontWeight: '600' }}>{status.toUpperCase()}</span>
-                  </p>
+          {events.filter(evt => getEventStatus(evt) !== 'ended').length === 0 ? (
+            <p style={{ color: 'var(--text-secondary)' }}>No active or upcoming events.</p>
+          ) : (
+            events.filter(evt => getEventStatus(evt) !== 'ended').map(evt => {
+              const status = getEventStatus(evt);
+              const statusColors = {
+                ongoing: 'var(--success)',
+                upcoming: 'var(--gold-primary)'
+              };
+              return (
+                <div key={evt.id} className="card" style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h4 style={{ color: evt.type === 'global' ? 'var(--gold-primary)' : 'var(--text-primary)' }}>{evt.title} <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', marginLeft: '8px' }}>{evt.type}</span></h4>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                      Host: <strong style={{ color: 'var(--text-primary)' }}>{evt.host_name}</strong> {evt.discord_username && <>(Discord: {evt.discord_username})</>}
+                    </p>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      Status: <span style={{ color: statusColors[status], fontWeight: '600' }}>{status.toUpperCase()}</span>
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button 
+                      className="btn btn-secondary" 
+                      style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }} 
+                      onClick={() => setEditingEvent(evt)}
+                    >
+                      <Edit size={12} /> Edit
+                    </button>
+                    <button 
+                      className="btn btn-secondary" 
+                      style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: 'var(--danger)', borderColor: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '4px' }} 
+                      onClick={() => handleDelete(evt.id)}
+                    >
+                      <Trash2 size={12} /> Delete
+                    </button>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button 
-                    className="btn btn-secondary" 
-                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }} 
-                    onClick={() => setEditingEvent(evt)}
-                  >
-                    <Edit size={12} /> Edit
-                  </button>
-                  <button 
-                    className="btn btn-secondary" 
-                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: 'var(--danger)', borderColor: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '4px' }} 
-                    onClick={() => handleDelete(evt.id)}
-                  >
-                    <Trash2 size={12} /> Delete
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </div>
 
@@ -678,6 +706,45 @@ export default function AdminDashboard() {
                   {updatingEvent ? 'Saving Changes...' : 'Save Changes'}
                 </button>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEndedModal && (
+        <div className="modal-overlay" onClick={() => setShowEndedModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+            <div className="modal-header">
+              <h2 className="modal-title">Ended Events</h2>
+              <button className="modal-close-btn" onClick={() => setShowEndedModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-body">
+              {events.filter(evt => getEventStatus(evt) === 'ended').length === 0 ? (
+                <p style={{ color: 'var(--text-secondary)', textAlign: 'center', margin: '2rem 0' }}>
+                  No ended events found.
+                </p>
+              ) : (
+                events.filter(evt => getEventStatus(evt) === 'ended').map(evt => {
+                  const { dateStr, istTime } = formatEventTime(evt.event_time);
+                  return (
+                    <div key={evt.id} className="card" style={{ marginBottom: '1rem', opacity: 0.85 }}>
+                      <h4 style={{ color: evt.type === 'global' ? 'var(--gold-primary)' : 'var(--text-primary)' }}>{evt.title} <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', marginLeft: '8px' }}>{evt.type}</span></h4>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                        Host: <strong style={{ color: 'var(--text-primary)' }}>{evt.host_name}</strong> {evt.discord_username && <>(Discord: {evt.discord_username})</>}
+                      </p>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        Date: {dateStr} &bull; Time: {istTime}
+                      </p>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        Status: <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>ENDED</span>
+                      </p>
+                      {/* No edit or delete buttons are shown for ended events */}
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
