@@ -148,6 +148,29 @@ app.put('/api/host-request/:id', async (req, res) => {
     console.error('Error updating host request:', error);
     res.status(500).json({ error: error.message });
   }
+// Delete a host request (by user, if pending)
+app.delete('/api/host-request/:id', async (req, res) => {
+  console.log(`[API] DELETE /api/host-request/${req.params.id} requested`);
+  const { id } = req.params;
+  try {
+    const reqRef = db.ref('host_requests').child(id);
+    const docSnap = await reqRef.once('value');
+    
+    if (docSnap.exists()) {
+      const request = docSnap.val();
+      if (request.status !== 'pending') {
+        return res.status(403).json({ error: 'Cannot delete requests that are already approved or rejected.' });
+      }
+
+      await reqRef.remove();
+      res.json({ success: true, message: 'Host request deleted successfully' });
+    } else {
+      res.status(404).json({ error: 'Host request not found' });
+    }
+  } catch (error) {
+    console.error('Error deleting host request:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Admin login

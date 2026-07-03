@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatEventTime } from '../utils/time';
-import { CalendarPlus, Download, Info, X, Edit } from 'lucide-react';
+import { CalendarPlus, Download, Info, X, Edit, Trash2 } from 'lucide-react';
 
 const downloadBase64Image = (base64String, fileName) => {
   if (!base64String) return;
@@ -111,7 +111,7 @@ function EventCard({ event, currentTime }) {
   );
 }
 
-function PendingRequestCard({ request, isEditable, onEdit }) {
+function PendingRequestCard({ request, isEditable, onEdit, onDelete }) {
   const { dateStr, istTime } = formatEventTime(request.requested_time);
   const applied = request.created_at ? formatEventTime(request.created_at) : null;
   const edited = request.edited_at ? formatEventTime(request.edited_at) : null;
@@ -195,22 +195,40 @@ function PendingRequestCard({ request, isEditable, onEdit }) {
               )}
             </div>
             {isEditable && (
-              <button 
-                className="btn btn-secondary" 
-                onClick={onEdit}
-                style={{ 
-                  padding: '0.35rem 0.85rem', 
-                  fontSize: '0.8rem', 
-                  borderRadius: '6px', 
-                  borderColor: 'var(--gold-primary)', 
-                  color: 'var(--gold-primary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px'
-                }}
-              >
-                <Edit size={12} /> Edit Application
-              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={onEdit}
+                  style={{ 
+                    padding: '0.35rem 0.85rem', 
+                    fontSize: '0.8rem', 
+                    borderRadius: '6px', 
+                    borderColor: 'var(--gold-primary)', 
+                    color: 'var(--gold-primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px'
+                  }}
+                >
+                  <Edit size={12} /> Edit
+                </button>
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={onDelete}
+                  style={{ 
+                    padding: '0.35rem 0.85rem', 
+                    fontSize: '0.8rem', 
+                    borderRadius: '6px', 
+                    borderColor: 'var(--danger)', 
+                    color: 'var(--danger)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px'
+                  }}
+                >
+                  <Trash2 size={12} /> Delete
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -368,6 +386,37 @@ export default function Home() {
                     onEdit={() => {
                       setShowPendingModal(false);
                       navigate(`/host-event/${req.id}`);
+                    }}
+                    onDelete={async () => {
+                      if (!confirm('Are you sure you want to delete this event request?')) {
+                        return;
+                      }
+                      try {
+                        const res = await fetch(`/api/host-request/${req.id}`, {
+                          method: 'DELETE'
+                        });
+                        if (res.ok) {
+                          // Update local state
+                          setPendingRequests(prev => prev.filter(item => item.id !== req.id));
+                          
+                          // Clean up localStorage
+                          try {
+                            const updatedList = myHostedRequests.filter(id => id !== req.id);
+                            localStorage.setItem('myHostedRequests', JSON.stringify(updatedList));
+                            setMyHostedRequests(updatedList);
+                          } catch (e) {
+                            console.error(e);
+                          }
+                          
+                          alert('Event request deleted successfully.');
+                        } else {
+                          const data = await res.json();
+                          alert(`Failed to delete request: ${data.error || res.statusText}`);
+                        }
+                      } catch (err) {
+                        console.error(err);
+                        alert('Error deleting request.');
+                      }
                     }}
                   />
                 ))
