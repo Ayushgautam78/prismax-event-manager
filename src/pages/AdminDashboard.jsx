@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatEventTime } from '../utils/time';
 import { X, Edit, Trash2 } from 'lucide-react';
+import TimePicker from '../components/TimePicker';
 
 const formatRequestTime = (isoString) => {
   if (!isoString) return 'TBD';
@@ -468,11 +469,13 @@ export default function AdminDashboard() {
                   <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
                     <input type="date" name="date" defaultValue={prepopulated.date} className="form-control" style={{ padding: '0.4rem', fontSize: '0.8rem', flex: 1 }} required />
                     <div style={{ display: 'flex', gap: '5px', flex: 1 }}>
-                      <input type="text" name="timeString" defaultValue={prepopulated.time} className="form-control" placeholder="12:30" pattern="^(1[0-2]|0?[1-9]):[0-5][0-9]$" title="Enter time in HH:MM format" style={{ padding: '0.4rem', fontSize: '0.8rem' }} required />
-                      <select name="ampm" defaultValue={prepopulated.ampm} className="form-control" style={{ padding: '0.4rem', fontSize: '0.8rem', width: '70px' }} required>
-                        <option value="AM">AM</option>
-                        <option value="PM">PM</option>
-                      </select>
+                      <TimePicker 
+                        name="timeString" 
+                        defaultValue={prepopulated.time} 
+                        defaultAmpm={prepopulated.ampm} 
+                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
+                        required 
+                      />
                     </div>
                   </div>
                   <div style={{ marginBottom: '10px' }}>
@@ -548,13 +551,7 @@ export default function AdminDashboard() {
               </div>
               <div className="form-group" style={{ flex: 1 }}>
                 <label className="form-label">Time (IST)</label>
-                <div style={{ display: 'flex', gap: '5px' }}>
-                  <input type="text" name="timeString" className="form-control" placeholder="12:30" pattern="^(1[0-2]|0?[1-9]):[0-5][0-9]$" title="Enter time in HH:MM format" required />
-                  <select name="ampm" className="form-control" style={{ width: '80px' }} required>
-                    <option value="AM">AM</option>
-                    <option value="PM">PM</option>
-                  </select>
-                </div>
+                <TimePicker name="timeString" required />
               </div>
             </div>
             <button type="submit" className="btn btn-primary" disabled={creatingEvent}>
@@ -712,13 +709,12 @@ export default function AdminDashboard() {
                       </div>
                       <div className="form-group" style={{ flex: 1 }}>
                         <label className="form-label">Time (IST)</label>
-                        <div style={{ display: 'flex', gap: '5px' }}>
-                          <input type="text" name="timeString" className="form-control" defaultValue={prepopulated.time} placeholder="12:30" pattern="^(1[0-2]|0?[1-9]):[0-5][0-9]$" title="Enter time in HH:MM format" required />
-                          <select name="ampm" className="form-control" defaultValue={prepopulated.ampm} style={{ width: '70px' }} required>
-                            <option value="AM">AM</option>
-                            <option value="PM">PM</option>
-                          </select>
-                        </div>
+                        <TimePicker 
+                          name="timeString" 
+                          defaultValue={prepopulated.time} 
+                          defaultAmpm={prepopulated.ampm} 
+                          required 
+                        />
                       </div>
                     </div>
                   );

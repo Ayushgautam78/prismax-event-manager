@@ -77,7 +77,7 @@ app.post('/api/host-request', async (req, res) => {
   console.log('[API] POST /api/host-request requested');
   const { title, description, hostName, discordName, requestedTime, hostImage, bannerImage } = req.body;
   try {
-    await db.ref('host_requests').push({
+    const newRequestRef = await db.ref('host_requests').push({
       title,
       description,
       host_name: hostName,
@@ -88,9 +88,63 @@ app.post('/api/host-request', async (req, res) => {
       status: 'pending',
       created_at: new Date().toISOString()
     });
-    res.json({ success: true, message: 'Host request submitted successfully' });
+    res.json({ success: true, message: 'Host request submitted successfully', id: newRequestRef.key });
   } catch (error) {
     console.error('Error submitting host request:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get a single host request
+app.get('/api/host-request/:id', async (req, res) => {
+  console.log(`[API] GET /api/host-request/${req.params.id} requested`);
+  const { id } = req.params;
+  try {
+    const docSnap = await db.ref('host_requests').child(id).once('value');
+    if (docSnap.exists()) {
+      res.json({ id, ...docSnap.val() });
+    } else {
+      res.status(404).json({ error: 'Host request not found' });
+    }
+  } catch (error) {
+    console.error('Error fetching host request:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update a host request (by user, if pending)
+app.put('/api/host-request/:id', async (req, res) => {
+  console.log(`[API] PUT /api/host-request/${req.params.id} requested`);
+  const { id } = req.params;
+  const { title, description, hostName, discordName, requestedTime, hostImage, bannerImage } = req.body;
+  try {
+    const reqRef = db.ref('host_requests').child(id);
+    const docSnap = await reqRef.once('value');
+    
+    if (docSnap.exists()) {
+      const request = docSnap.val();
+      if (request.status !== 'pending') {
+        return res.status(403).json({ error: 'Cannot edit requests that are already approved or rejected.' });
+      }
+
+      const updates = {
+        title,
+        description,
+        host_name: hostName,
+        discord_name: discordName,
+        requested_time: requestedTime || null
+      };
+
+      if (hostImage) updates.host_image = hostImage;
+      if (bannerImage) updates.banner_image = bannerImage;
+
+      await reqRef.update(updates);
+      res.json({ success: true, message: 'Host request updated successfully' });
+    } else {
+      res.status(404).json({ error: 'Host request not found' });
+    }
+  } catch (error) {
+    console.error('Error updating host request:', error);
     res.status(500).json({ error: error.message });
   }
 });

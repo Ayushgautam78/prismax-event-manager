@@ -107,6 +107,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/host-event" element={<HostEvent />} />
+        <Route path="/host-event/:id" element={<HostEvent />} />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
       </Routes>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatEventTime } from '../utils/time';
-import { CalendarPlus, Download, Info, X } from 'lucide-react';
+import { CalendarPlus, Download, Info, X, Edit } from 'lucide-react';
 
 const downloadBase64Image = (base64String, fileName) => {
   if (!base64String) return;
@@ -111,7 +111,7 @@ function EventCard({ event, currentTime }) {
   );
 }
 
-function PendingRequestCard({ request }) {
+function PendingRequestCard({ request, isEditable, onEdit }) {
   const { dateStr, istTime } = formatEventTime(request.requested_time);
   const applied = request.created_at ? formatEventTime(request.created_at) : null;
 
@@ -175,15 +175,35 @@ function PendingRequestCard({ request }) {
             </div>
           )}
           
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '500', flexWrap: 'wrap' }}>
-            <span>Requested Date: <strong style={{ color: 'var(--gold-secondary)' }}>{dateStr}</strong></span>
-            <span>&bull;</span>
-            <span>Requested Time: <strong style={{ color: 'var(--gold-secondary)' }}>{istTime}</strong></span>
-            {applied && (
-              <>
-                <span>&bull;</span>
-                <span>Applied On: <strong style={{ color: 'var(--text-primary)' }}>{applied.dateStr} at {applied.istTime}</strong></span>
-              </>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.2rem', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '500', flexWrap: 'wrap' }}>
+              <span>Requested Date: <strong style={{ color: 'var(--gold-secondary)' }}>{dateStr}</strong></span>
+              <span>&bull;</span>
+              <span>Requested Time: <strong style={{ color: 'var(--gold-secondary)' }}>{istTime}</strong></span>
+              {applied && (
+                <>
+                  <span>&bull;</span>
+                  <span>Applied On: <strong style={{ color: 'var(--text-primary)' }}>{applied.dateStr} at {applied.istTime}</strong></span>
+                </>
+              )}
+            </div>
+            {isEditable && (
+              <button 
+                className="btn btn-secondary" 
+                onClick={onEdit}
+                style={{ 
+                  padding: '0.35rem 0.85rem', 
+                  fontSize: '0.8rem', 
+                  borderRadius: '6px', 
+                  borderColor: 'var(--gold-primary)', 
+                  color: 'var(--gold-primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}
+              >
+                <Edit size={12} /> Edit Application
+              </button>
             )}
           </div>
         </div>
@@ -198,6 +218,18 @@ export default function Home() {
   const [pendingRequests, setPendingRequests] = useState([]);
   const [showPendingModal, setShowPendingModal] = useState(false);
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const [myHostedRequests, setMyHostedRequests] = useState([]);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('myHostedRequests');
+      if (stored) {
+        setMyHostedRequests(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.error('Error parsing myHostedRequests from localStorage:', e);
+    }
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -322,7 +354,15 @@ export default function Home() {
                 </p>
               ) : (
                 pendingRequests.map(req => (
-                  <PendingRequestCard key={req.id} request={req} />
+                  <PendingRequestCard 
+                    key={req.id} 
+                    request={req} 
+                    isEditable={myHostedRequests.includes(req.id)}
+                    onEdit={() => {
+                      setShowPendingModal(false);
+                      navigate(`/host-event/${req.id}`);
+                    }}
+                  />
                 ))
               )}
             </div>
