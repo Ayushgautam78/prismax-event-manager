@@ -16,7 +16,9 @@ export default function TimePicker({ name, defaultValue, defaultAmpm, required, 
     if (defaultValue) {
       const parts = defaultValue.split(':');
       setHours(parseInt(parts[0], 10) || 12);
-      setMinutes(parseInt(parts[1], 10) || 0);
+      const parsedMin = parseInt(parts[1], 10) || 0;
+      const snappedMin = Math.round(parsedMin / 5) * 5 % 60;
+      setMinutes(snappedMin);
     }
     if (defaultAmpm) {
       setAmpm(defaultAmpm);
@@ -63,7 +65,7 @@ export default function TimePicker({ name, defaultValue, defaultAmpm, required, 
       if (hr > 12) hr = 12;
       setHours(hr);
     } else {
-      let min = Math.round(angleDegrees / 6) % 60;
+      let min = (Math.round(angleDegrees / 30) * 5) % 60;
       setMinutes(min);
     }
   };
