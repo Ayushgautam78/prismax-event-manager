@@ -148,6 +148,8 @@ app.put('/api/host-request/:id', async (req, res) => {
     console.error('Error updating host request:', error);
     res.status(500).json({ error: error.message });
   }
+});
+
 // Delete a host request (by user, if pending)
 app.delete('/api/host-request/:id', async (req, res) => {
   console.log(`[API] DELETE /api/host-request/${req.params.id} requested`);
