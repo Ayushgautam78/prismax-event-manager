@@ -131,7 +131,7 @@ export default function AdminDashboard() {
 
     try {
       const session = JSON.parse(sessionStr);
-      if (!session.token || !session.expiry || Date.now() > session.expiry) {
+      if (!session.token) {
         localStorage.removeItem('adminSession');
         navigate('/admin/login');
         return;

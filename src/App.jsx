@@ -7,6 +7,17 @@ import { ShieldAlert } from 'lucide-react';
 
 function Navigation() {
   const navigate = useNavigate();
+  const isAdminLoggedIn = () => {
+    try {
+      const sessionStr = localStorage.getItem('adminSession');
+      if (!sessionStr) return false;
+      const session = JSON.parse(sessionStr);
+      return !!session.token;
+    } catch (e) {
+      return false;
+    }
+  };
+
   return (
     <nav className="nav">
       <div className="container nav-container">
@@ -14,7 +25,7 @@ function Navigation() {
           <img src="/logo.png" alt="PrismaX" className="logo-img" />
         </Link>
         <div style={{ display: 'flex', gap: '15px' }}>
-          <button className="btn btn-secondary" onClick={() => navigate('/admin/login')}>
+          <button className="btn btn-secondary" onClick={() => navigate(isAdminLoggedIn() ? '/admin/dashboard' : '/admin/login')}>
             <ShieldAlert size={16} style={{ marginRight: '8px' }} /> Admin
           </button>
         </div>
@@ -32,7 +43,7 @@ function AdminLogin() {
     if (sessionStr) {
       try {
         const session = JSON.parse(sessionStr);
-        if (session.token && session.expiry && Date.now() < session.expiry) {
+        if (session.token) {
           navigate('/admin/dashboard');
         }
       } catch (e) {
@@ -62,10 +73,9 @@ function AdminLogin() {
       } catch (e) {}
       
       if (res.ok && data.success) {
-        // Save session valid for 7 days in localStorage
+        // Save session in localStorage (persistent until logout)
         const session = {
-          token: data.token,
-          expiry: Date.now() + 7 * 24 * 60 * 60 * 1000 // 7 days in ms
+          token: data.token
         };
         localStorage.setItem('adminSession', JSON.stringify(session));
         navigate('/admin/dashboard');
