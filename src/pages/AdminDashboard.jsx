@@ -420,7 +420,7 @@ export default function AdminDashboard() {
                 <p style={{ marginBottom: '1rem', fontSize: '0.9rem' }}>
                   Host: <span style={{ color: 'var(--text-primary)' }}>{req.host_name}</span> <br/>
                   Discord: <span style={{ color: 'var(--text-primary)' }}>{req.discord_name}</span> <br/>
-                  Applied At: <span style={{ color: 'var(--text-secondary)' }}>{formatRequestTime(req.created_at)}</span> <br/>
+                  Applied At: <span style={{ color: 'var(--text-secondary)' }}>{formatRequestTime(req.created_at)}</span> {req.edited_at && <span style={{ color: 'var(--gold-primary)', fontSize: '0.8rem' }}>(Edited: {formatRequestTime(req.edited_at)})</span>} <br/>
                   Requested Time: <span style={{ color: 'var(--gold-primary)', fontWeight: '500' }}>{formatRequestTime(req.requested_time)}</span>
                 </p>
                 {req.host_image && (

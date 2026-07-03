@@ -114,6 +114,7 @@ function EventCard({ event, currentTime }) {
 function PendingRequestCard({ request, isEditable, onEdit }) {
   const { dateStr, istTime } = formatEventTime(request.requested_time);
   const applied = request.created_at ? formatEventTime(request.created_at) : null;
+  const edited = request.edited_at ? formatEventTime(request.edited_at) : null;
 
   return (
     <div className="card" style={{ marginBottom: '1.5rem', opacity: 0.85, borderStyle: 'dashed', borderColor: 'rgba(212, 175, 55, 0.3)' }}>
@@ -184,6 +185,12 @@ function PendingRequestCard({ request, isEditable, onEdit }) {
                 <>
                   <span>&bull;</span>
                   <span>Applied On: <strong style={{ color: 'var(--text-primary)' }}>{applied.dateStr} at {applied.istTime}</strong></span>
+                </>
+              )}
+              {edited && (
+                <>
+                  <span>&bull;</span>
+                  <span style={{ color: 'var(--gold-primary)' }}>(Edited: <strong style={{ color: 'var(--text-primary)' }}>{edited.dateStr} at {edited.istTime}</strong>)</span>
                 </>
               )}
             </div>

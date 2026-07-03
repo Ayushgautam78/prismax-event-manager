@@ -132,7 +132,8 @@ app.put('/api/host-request/:id', async (req, res) => {
         description,
         host_name: hostName,
         discord_name: discordName,
-        requested_time: requestedTime || null
+        requested_time: requestedTime || null,
+        edited_at: new Date().toISOString()
       };
 
       if (hostImage) updates.host_image = hostImage;
